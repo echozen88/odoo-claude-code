@@ -1,6 +1,6 @@
 {
   "name": "odoo-claude-code",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Claude Code plugin for Odoo 19 development - specialized agents, skills, and orchestration workflows tailored for Odoo ERP framework",
   "author": {
     "name": "Odoo Claude Code Team"
@@ -13,7 +13,10 @@
     "odoo",
     "erp",
     "python",
-    "development"
+    "development",
+    "owl",
+    "migration",
+    "performance"
   ],
   "skills": ["./skills/", "./commands/"],
   "agents": [
@@ -21,6 +24,9 @@
     "./agents/tdd-guide.md",
     "./agents/code-reviewer.md",
     "./agents/security-reviewer.md",
-    "./agents/odoo-reviewer.md"
+    "./agents/odoo-reviewer.md",
+    "./agents/performance-agent.md",
+    "./agents/migration-agent.md",
+    "./agents/debugging-agent.md"
   ]
 }

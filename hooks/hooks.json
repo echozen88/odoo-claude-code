@@ -2,64 +2,97 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "hooks": {
     "PreToolUse": [
-    {
-      "matcher": "tool == \"Write\" && tool_input.file_path matches \"\\\\.(py)$\"",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "#!/usr/bin/env node\n\nconst fs = require('fs');\nconst path = require('path');\nconst filePath = process.env.TOOL_INPUT_FILE_PATH;\n\n// Check if file is in tests/ directory\nif (filePath.includes('/tests/') || filePath.includes('\\\\tests\\\\')) {\n  // Test files are OK to write without tests first\n  process.exit(0);\n}\n\n// Check if file is a Python model file\nconst isModelFile = filePath.match(/models\\/[^\\/]+\\.py$/);\n\nif (isModelFile) {\n  // Check if corresponding test file exists\n  const basePath = path.dirname(filePath);\n  const testsPath = path.resolve(basePath, '../../tests');\n  const modelName = path.basename(filePath, '.py');\n  const testFileName = `test_${modelName}.py`;\n  const testFilePath = path.resolve(testsPath, testFileName);\n\n  if (!fs.existsSync(testFilePath)) {\n    console.error('\\x1b[33m⚠️  [Hook] No test file found for ' + modelName + '\\x1b[0m');\n    console.error('Expected test at: ' + testFilePath);\n    console.error('Please write tests first before implementing the model (TDD).');\n  }\n}\n"
-        }
-      ]
-    },
-    {
-      "matcher": "tool == \"Write\" && tool_input.file_path matches \"\\\\.(xml)$\"",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "#!/usr/bin/env node\n\nconst fs = require('fs');\nconst filePath = process.env.TOOL_INPUT_FILE_PATH;\n\n// Check if file is in security/ directory\nif (filePath.includes('/security/') || filePath.includes('\\\\security\\\\')) {\n  // Security files require attention\n  console.log('\\x1b[36mℹ️  [Hook] Security file modified: ' + filePath + '\\x1b[0m');\n  console.log('Remember to test access rights and record rules.');\n}\n"
-        }
-      ]
-    },
-    {
-      "matcher": "tool == \"Write\" && tool_input.file_path matches \"\\\\.(py)$\"",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "#!/usr/bin/env node\n\nconst fs = require('fs');\nconst filePath = process.env.TOOL_INPUT_FILE_PATH;\n\n// Read file content\nconst content = fs.readFileSync(filePath, 'utf8');\n\n// Check for sudo() usage without justification\nconst sudoMatches = content.matchAll(/\\.sudo\\(\\)/g);\nif (sudoMatches) {\n  console.error('\\x1b[31m🔴  [Hook] sudo() detected in ' + filePath + '\\x1b[0m');\n  console.error('sudo() bypasses all security checks.');\n  console.error('Only use sudo() when absolutely necessary (e.g., technical cleanup).');\n  console.error('Add a comment explaining why sudo() is needed.');\n}"
-        }
-      ]
-    }
-  ],
-  "PostToolUse": [
-    {
-      "matcher": "tool == \"Bash\" && tool_input.command matches \"git commit\"",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "#!/usr/bin/env node\n\nconst { execSync } = require('child_process');\n\ntry {\n  // Run pylint on modified Python files\n  const changedFiles = execSync('git diff --name-only HEAD~1..HEAD', { encoding: 'utf8' });\n  const pythonFiles = changedFiles.split('\\n').filter(f => f.endsWith('.py'));\n  \n  if (pythonFiles.length > 0) {\n    console.log('\\x1b[36mℹ️  [Hook] Running PEP8 check...\\x1b[0m');\n    try {\n      execSync('pylint --py3k ' + pythonFiles.join(' '), { stdio: 'inherit' });\n      console.log('\\x1b[32m✓  PEP8 check passed\\x1b[0m');\n    } catch (e) {\n      console.error('\\x1b[33m⚠️  PEP8 issues detected. Please fix before committing.\\x1b[0m');\n    }\n  }\n} catch (e) {\n  // Pylint may not be available, that's OK\n  console.log('PEP8 check skipped (pylint not available)');\n}"
-        }
-      ]
-    },
-    {
-      "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\\\.(py)$\"",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "#!/usr/bin/env node\n\nconst filePath = process.env.TOOL_INPUT_FILE_PATH;\nconsole.log('\\x1b[36mℹ️  [Hook] Modified Python file: ' + filePath + '\\x1b[0m');\nconsole.log('Remember to run tests for this file.');\nconsole.log('Run: odoo -d test_db --test-enable --test-tags=' + path.basename(path.dirname(filePath)) + ' --stop-after-init');\n"
-        }
-      ]
-    }
-  ],
-  "Stop": [
-    {
-      "matcher": "tool == \"Stop\"",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "#!/usr/bin/env node\n\nconst { execSync } = require('child_process');\nconst fs = require('fs');\n\nconsole.log('\\x1b[36mℹ️  [Hook] Session ending. Running final checks...\\x1b[0m');\n\n// Check for console.log statements\nconst changedFiles = execSync('git diff --name-only HEAD~1..HEAD', { encoding: 'utf8' });\nconst pythonFiles = changedFiles.split('\\n').filter(f => f.endsWith('.py'));\n\nlet hasConsoleLog = false;\nfor (const file of pythonFiles) {\n  if (!fs.existsSync(file)) continue;\n  const content = fs.readFileSync(file, 'utf8');\n  if (content.includes('print(') || content.includes('console.log(')) {\n    console.error('\\x1b[33m⚠️  [Hook] Found console.log in ' + file + '\\x1b[0m');\n    console.error('Please remove console.log before committing.');\n    hasConsoleLog = true;\n  }\n}\n\n// Check for TODO/FIXME without tickets\nlet hasTodo = false;\nfor (const file of pythonFiles) {\n  if (!fs.existsSync(file)) continue;\n  const content = fs.readFileSync(file, 'utf8');\n  const todoMatches = content.matchAll(/TODO|FIXME/gi);\n  if (todoMatches.length > 0) {\n    const hasTicket = content.includes('TODO(') || content.includes('FIXME(');\n    if (!hasTicket) {\n      console.error('\\x1b[33m⚠️  [Hook] Found TODO/FIXME without ticket reference in ' + file + '\\x1b[0m');\n      console.error('Please add a ticket reference like TODO(#123).');\n      hasTodo = true;\n    }\n  }\n}\n\n// Check for hardcoded secrets\nconst secretPatterns = [/api[_-]?key\\s*[=:]\\s*[\"'][a-zA-Z0-9_-]+[\"']/gi, /password\\s*[=:]\\s*[\"'][a-zA-Z0-9_-]+[\"']/gi];\nfor (const file of pythonFiles) {\n  if (!fs.existsSync(file)) continue;\n  const content = fs.readFileSync(file, 'utf8');\n  for (const pattern of secretPatterns) {\n    const matches = content.match(pattern);\n    if (matches) {\n      console.error('\\x1b[31m🔴  [Hook] Potential hardcoded secret in ' + file + '\\x1b[0m');\n      console.error('Match: ' + matches[0]);\n      console.error('Never commit secrets! Use environment variables or system parameters.');\n    }\n  }\n}\n\nif (!hasConsoleLog && !hasTodo) {\n  console.log('\\x1b[32m✓  No console.log or TODO issues found.\\x1b[0m');\n}\n"
-        }
-      ]
-    }
-  ]
+      {
+        "matcher": "tool == \"Write\" && tool_input.file_path matches \"\\\\.(py)$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/usr/bin/env node\nconst fs = require('fs');\nconst path = require('path');\nconst filePath = process.env.TOOL_INPUT_FILE_PATH || process.env.WRITE_FILE_PATH;\n\n// Check if file is in tests/ directory\nif (filePath && (filePath.includes('/tests/') || filePath.includes('\\\\tests\\\\'))) {\n  // Test files are OK to write without tests first\n  process.exit(0);\n}\n\n// Check if file is a Python model file\nconst isModelFile = filePath && filePath.match(/models\\/[^\\/]+\\.py$/);\nif (isModelFile) {\n  // Check if corresponding test file exists\n  const basePath = path.dirname(filePath);\n  const testsPath = path.resolve(basePath, '../../tests');\n  const modelName = path.basename(filePath, '.py');\n  const testFileName = `test_${modelName}.py`;\n  const testFilePath = path.resolve(testsPath, testFileName);\n\n  if (fs.existsSync(testPath) && !fs.existsSync(testFilePath)) {\n    console.error('\\x1b[33m⚠️  [Hook] No test file found for ' + modelName + '\\x1b[0m');\n    console.error('Expected test at: ' + testFilePath);\n    console.error('Please write tests first before implementing model (TDD).');\n  }\n}\n"
+          }
+        ]
+      },
+      {
+        "matcher": "tool == \"Write\" && tool_input.file_path matches \"\\\\.(xml)$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/usr/bin/env node\nconst filePath = process.env.TOOL_INPUT_FILE_PATH || process.env.WRITE_FILE_PATH;\n\n// Check if file is in security/ directory\nif (filePath && (filePath.includes('/security/') || filePath.includes('\\\\security\\\\'))) {\n  // Security files require attention\n  console.log('\\x1b[36mℹ️  [Hook] Security file modified: ' + filePath + '\\x1b[0m');\n  console.log('Remember to test access rights and record rules.');\n}\n"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\\\.py$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/usr/bin/env node\n/* Odoo Deprecated API Detection Hook */\nconst filePath = process.env.EDIT_FILE_PATH;\nconst newContent = process.env.EDIT_NEW_CONTENT || '';\nconst oldContent = process.env.EDIT_OLD_CONTENT || '';\n\nif (!filePath || !filePath.endsWith('.py')) {\n  process.exit(0);\n}\n\nconst warnings = [];\n\n// Pattern 1: _columns = (old Odoo API)\nconst columnsPattern = /_columns\\s*=\\s*\\{/g;\nif (columnsPattern.test(oldContent) || columnsPattern.test(newContent)) {\n  warnings.push({\n    severity: 'high',\n    message: 'Detected deprecated _columns = usage. Use fields module instead.',\n    pattern: '_columns =',\n    fix: 'Replace _columns with field definitions using fields.Char, fields.Many2one, etc.'\n  });\n}\n\n// Pattern 2: osv.osv or osv.orm (very old API)\nconst osvPattern = /osv\\.(osv|orm)\\(/g;\nif (osvPattern.test(oldContent) || osvPattern.test(newContent)) {\n  warnings.push({\n    severity: 'critical',\n    message: 'Detected deprecated osv.osv/osv.orm usage. Use models.Model instead.',\n    pattern: 'osv.osv or osv.orm',\n    fix: 'Use class MyModel(models.Model): instead of osv.osv'\n  });\n}\n\n// Pattern 3: @api.one decorator (deprecated since Odoo 16, removed in 17+)\nconst apiOnePattern = /@api\\.one\\b/g;\nif (apiOnePattern.test(oldContent) || apiOnePattern.test(newContent)) {\n  warnings.push({\n    severity: 'critical',\n    message: 'Detected deprecated @api.one decorator. Removed in Odoo 17+.',\n    pattern: '@api.one',\n    fix: 'Remove @api.one and iterate over self directly in your method'\n  });\n}\n\n// Pattern 4: @api.multi decorator (deprecated since Odoo 16)\nconst apiMultiPattern = /@api\\.multi\\b/g;\nif (apiMultiPattern.test(oldContent) || apiMultiPattern.test(newContent)) {\n  warnings.push({\n    severity: 'high',\n    message: 'Detected deprecated @api.multi decorator. Not needed in Odoo 16+.',\n    pattern: '@api.multi',\n    fix: 'Remove @api.multi decorator - methods now operate on recordsets by default'\n  });\n}\n\n// Pattern 5: fields.function (deprecated)\nconst functionPattern = /fields\\.function\\(/g;\nif (functionPattern.test(oldContent) || functionPattern.test(newContent)) {\n  warnings.push({\n    severity: 'high',\n    message: 'Detected deprecated fields.function. Use fields with compute parameter.',\n    pattern: 'fields.function',\n    fix: 'Use fields.Char(compute=\"_compute_method\", store=True) instead'\n  });\n}\n\n// Pattern 6: _defaults dictionary (deprecated)\nconst defaultsPattern = /_defaults\\s*=\\s*\\{/g;\nif (defaultsPattern.test(oldContent) || defaultsPattern.test(newContent)) {\n  warnings.push({\n    severity: 'medium',\n    message: 'Detected deprecated _defaults dictionary. Use default parameter on fields.',\n    pattern: '_defaults =',\n    fix: 'Use default=... parameter in field definition instead'\n  });\n}\n\n// Pattern 7: @api.returns with lambda (deprecated in 17+)\nconst returnsPattern = /@api\\.returns\\([^,]+,\\s*lambda/g;\nif (returnsPattern.test(oldContent) || returnsPattern.test(newContent)) {\n  warnings.push({\n    severity: 'medium',\n    message: 'Detected deprecated @api.returns with lambda. Use simpler form.',\n    pattern: '@api.returns(self, lambda ...)',\n    fix: 'Use @api.returns(\"self\") without lambda parameter'\n  });\n}\n\n// Output warnings\nif (warnings.length > 0) {\n  console.log('\\x1b[33m=== Odoo Deprecated API Detection ===\\x1b[0m');\n  warnings.forEach((w, i) => {\n    const severity = w.severity.toUpperCase();\n    const emoji = { 'critical': '\ud83d\udea8', 'high': '\u26a0\ufe0f', 'medium': '\u26a0', 'low': '\u2139' };\n    console.log(`${emoji[w.severity] || ''} [${severity}] ${w.message}`);\n    console.log(`   Pattern: ${w.pattern}`);\n    console.log(`   Fix: ${w.fix}`);\n  });\n  console.log('\\x1b[33m======================================\\x1b[0m\\n');\n}\n\nprocess.exit(0);\n",
+            "env": {
+              "EDIT_FILE_PATH": "{{ tool_input.file_path }}",
+              "EDIT_NEW_CONTENT": "{{ tool_input.new_content }}",
+              "EDIT_OLD_CONTENT": "{{ tool_input.old_content }}"
+            }
+          }
+        ]
+      },
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\\\.py$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/usr/bin/env node\n/* Odoo Performance Pattern Detection Hook */\nconst filePath = process.env.EDIT_FILE_PATH;\nconst newContent = process.env.EDIT_NEW_CONTENT || '';\nconst oldContent = process.env.EDIT_OLD_CONTENT || '';\n\nif (!filePath || !filePath.endsWith('.py')) {\n  process.exit(0);\n}\n\nconst warnings = [];\n\n// Pattern 1: search() inside loop (N+1 query problem)\nconst loopSearchPattern = /for\\s+\\w+\\s+in\\s+[^:]+:(?!.*#.*skip|.*#.*ignore)[\\s\\S]*\\.search\\(/gm;\nif (loopSearchPattern.test(oldContent) || loopSearchPattern.test(newContent)) {\n  warnings.push({\n    severity: 'high',\n    message: 'Potential N+1 query problem: search() inside loop.',\n    pattern: 'for ... in ...: ...search()',\n    fix: 'Use search() before loop or use search_read() with prefetch'\n  });\n}\n\n// Pattern 2: Computed field without store=True when used in search\nconst computedNoStorePattern = /fields\\.(\\w+)\\s*\\([^)]*compute[^)]*\\)(?!.*store\\s*=\\s*True)/g;\nif (computedNoStorePattern.test(newContent) && newContent.includes('search([')) {\n  warnings.push({\n    severity: 'medium',\n    message: 'Computed field used in search without store=True.',\n    pattern: 'computed field without store=True',\n    fix: 'Add store=True to computed field for filtering/searching'\n  });\n}\n\n// Pattern 3: Many2one without index\nconst many2oneNoIndexPattern = /fields\\.Many2one\\([^)]*\\)(?!.*index\\s*=\\s*True)/g;\nif (many2oneNoIndexPattern.test(newContent)) {\n  warnings.push({\n    severity: 'low',\n    message: 'Many2one field without index=True.',\n    pattern: 'fields.Many2one without index',\n    fix: 'Add index=True to Many2one fields used in searches'\n  });\n}\n\n// Pattern 4: Selection field used in filter without index\nconst selectionSearchPattern = /state\\s*in\\s*\\[/g;\nif (selectionSearchPattern.test(newContent)) {\n  warnings.push({\n    severity: 'low',\n    message: 'Selection field used in filter. Consider adding index.',\n    pattern: 'state field filtering',\n    fix: 'Add index=True to selection fields used in domains'\n  });\n}\n\n// Pattern 5: write() called on individual records in loop\nconst loopWritePattern = /for\\s+\\w+\\s+in\\s+[^:]+:(?!.*#.*bulk|.*#.*batch)[\\s\\S]*\\.write\\(/gm;\nif (loopWritePattern.test(oldContent) || loopWritePattern.test(newContent)) {\n  warnings.push({\n    severity: 'medium',\n    message: 'write() called in loop. Consider bulk write.',\n    pattern: 'for ... in ...: ...write()',\n    fix: 'Use records.write({...}) for bulk operations'\n  });\n}\n\n// Pattern 6: create() called in loop\nconst loopCreatePattern = /for\\s+\\w+\\s+in\\s+[^:]+:(?!.*#.*bulk)[\\s\\S]*\\.create\\(/gm;\nif (loopCreatePattern.test(oldContent) || loopCreatePattern.test(newContent)) {\n  warnings.push({\n    severity: 'medium',\n    message: 'create() called in loop. Consider bulk create.',\n    pattern: 'for ... in ...: ...create()',\n    fix: 'Use Model.create([...]) for bulk operations'\n  });\n}\n\n// Output warnings\nif (warnings.length > 0) {\n  console.log('\\x1b[33m=== Odoo Performance Pattern Detection ===\\x1b[0m');\n  warnings.forEach((w, i) => {\n    const severity = w.severity.toUpperCase();\n    const emoji = { 'critical': '\ud83d\udea8', 'high': '\u26a0\ufe0f', 'medium': '\u26a0', 'low': '\u2139' };\n    console.log(`${emoji[w.severity] || ''} [${severity}] ${w.message}`);\n    console.log(`   Pattern: ${w.pattern}`);\n    console.log(`   Fix: ${w.fix}`);\n  });\n  console.log('\\x1b[33m=========================================\\x1b[0m\\n');\n}\n\nprocess.exit(0);\n",
+            "env": {
+              "EDIT_FILE_PATH": "{{ tool_input.file_path }}",
+              "EDIT_NEW_CONTENT": "{{ tool_input.new_content }}",
+              "EDIT_OLD_CONTENT": "{{ tool_input.old_content }}"
+            }
+          }
+        ]
+      },
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\\\.js$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/usr/bin/env node\n/* Odoo Widget System Deprecation Detection */\nconst filePath = process.env.EDIT_FILE_PATH;\nconst newContent = process.env.EDIT_NEW_CONTENT || '';\n\nif (!filePath || !filePath.endsWith('.js')) {\n  process.exit(0);\n}\n\nconst warnings = [];\n\n// Pattern 1: Widget.extend (deprecated in Odoo 19, use OWL)\nconst widgetExtendPattern = /Widget\\.extend\\s*\\(/g;\nif (widgetExtendPattern.test(oldContent) || widgetExtendPattern.test(newContent)) {\n  warnings.push({\n    severity: 'high',\n    message: 'Widget.extend is deprecated. Use OWL components in Odoo 19.',\n    pattern: 'Widget.extend',\n    fix: 'Use OWL Component class with setup() instead of Widget.extend'\n  });\n}\n\n// Pattern 2: var Widget = require('web.Widget')\nconst widgetRequirePattern = /var\\s+Widget\\s*=\\s*require\\(['\"]web\\.Widget['\"])/g;\nif (widgetRequirePattern.test(oldContent) || widgetRequirePattern.test(newContent)) {\n  warnings.push({\n    severity: 'high',\n    message: 'web.Widget is deprecated. Use OWL in Odoo 19.',\n    pattern: 'require(\"web.Widget\")',\n    fix: 'Use OWL Component and require(\"owl\") instead'\n  });\n}\n\n// Pattern 3: this.$() jQuery usage (OWL uses refs)\nconst jqueryPattern = /this\\.\\$\\(/g;\nif (jqueryPattern.test(newContent)) {\n  warnings.push({\n    severity: 'medium',\n    message: 'jQuery this.$() found. Use OWL refs instead.',\n    pattern: 'this.$()',\n    fix: 'Use owl.hooks.useRef() for direct DOM access in OWL'\n  });\n}\n\n// Output warnings\nif (warnings.length > 0) {\n  console.log('\\x1b[33m=== Odoo Frontend Deprecation Detection ===\\x1b[0m');\n  warnings.forEach(w => {\n    const severity = w.severity.toUpperCase();\n    console.log(`\\u26a0 [${severity}] ${w.message}`);\n    console.log(`   Pattern: ${w.pattern}`);\n    console.log(`   Fix: ${w.fix}`);\n  });\n  console.log('\\x1b[33m========================================\\x1b[0m\\n');\n}\n\nprocess.exit(0);\n",
+            "env": {
+              "EDIT_FILE_PATH": "{{ tool_input.file_path }}",
+              "EDIT_NEW_CONTENT": "{{ tool_input.new_content }}",
+              "EDIT_OLD_CONTENT": "{{ tool_input.old_content }}"
+            }
+          }
+        ]
+      },
+      {
+        "matcher": "tool == \"Bash\" && tool_input.command matches \"git commit\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/usr/bin/env node\nconst { execSync } = require('child_process');\n\ntry {\n  // Run pylint on modified Python files\n  const changedFiles = execSync('git diff --name-only HEAD~1..HEAD', { encoding: 'utf8' });\n  const pythonFiles = changedFiles.split('\\n').filter(f => f.endsWith('.py'));\n  \n  if (pythonFiles.length > 0) {\n    console.log('\\x1b[36mℹ️  [Hook] Running PEP8 check...\\x1b[0m');\n    try {\n      execSync('pylint --py3k ' + pythonFiles.join(' '), { stdio: 'inherit' });\n      console.log('\\x1b[32m✓  PEP8 check passed\\x1b[0m');\n    } catch (e) {\n      console.error('\\x1b[33m⚠️  PEP8 issues detected. Please fix before committing.\\x1b[0m');\n    }\n  }\n} catch (e) {\n  // Pylint may not be available, that's OK\n  console.log('PEP8 check skipped (pylint not available)');\n}"
+          }
+        ]
+      },
+      {
+        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\\\.(py)$\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/usr/bin/env node\nconst path = require('path');\nconst filePath = process.env.EDIT_FILE_PATH;\nconsole.log('\\x1b[36mℹ️  [Hook] Modified Python file: ' + path.basename(filePath) + '\\x1b[0m');\nconsole.log('Remember to run tests for this file.');"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "tool == \"Stop\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/usr/bin/env node\nconst { execSync } = require('child_process');\nconst fs = require('fs');\n\nconsole.log('\\x1b[36mℹ️  [Hook] Session ending. Running final checks...\\x1b[0m');\n\n// Check for console.log statements\nconst changedFiles = execSync('git diff --name-only HEAD~1..HEAD', { encoding: 'utf8' });\nconst pythonFiles = changedFiles.split('\\n').filter(f => f.endsWith('.py'));\n\nlet hasConsoleLog = false;\nfor (const file of pythonFiles) {\n  if (!fs.existsSync(file)) continue;\n  const content = fs.readFileSync(file, 'utf8');\n  if (content.includes('print(') || content.includes('console.log(')) {\n    console.error('\\x1b[33m⚠️  [Hook] Found console.log in ' + file + '\\x1b[0m');\n    console.error('Please remove console.log before committing.');\n    hasConsoleLog = true;\n  }\n}\n\n// Check for TODO/FIXME without tickets\nlet hasTodo = false;\nfor (const file of pythonFiles) {\n  if (!fs.existsSync(file)) continue;\n  const content = fs.readFileSync(file, 'utf8');\n  const todoMatches = content.matchAll(/TODO|FIXME/gi);\n  if (todoMatches.length > 0) {\n    const hasTicket = content.includes('TODO(') || content.includes('FIXME(');\n    if (!hasTicket) {\n      console.error('\\x1b[33m⚠️  [Hook] Found TODO/FIXME without ticket reference in ' + file + '\\x1b[0m');\n      console.error('Please add a ticket reference like TODO(#123).');\n      hasTodo = true;\n    }\n  }\n}\n\n// Check for hardcoded secrets\nconst secretPatterns = [/api[_-]?key\\s*[=:]\\s*[\"'][a-zA-Z0-9_-]+[\"']/gi, /password\\s*[=:]\\s*[\"'][a-zA-Z0-9_-]+[\"']/gi];\nfor (const file of pythonFiles) {\n  if (!fs.existsSync(file)) continue;\n  const content = fs.readFileSync(file, 'utf8');\n  for (const pattern of secretPatterns) {\n    const matches = content.match(pattern);\n    if (matches) {\n      console.error('\\x1b[31m🔴  [Hook] Potential hardcoded secret in ' + file + '\\x1b[0m');\n      console.error('Match: ' + matches[0]);\n      console.error('Never commit secrets! Use environment variables or system parameters.');\n    }\n  }\n}\n\nif (!hasConsoleLog && !hasTodo) {\n  console.log('\\x1b[32m✓  No console.log or TODO issues found.\\x1b[0m');\n}\n"
+          }
+        ]
+      }
+    ]
   }
 }

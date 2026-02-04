@@ -35,6 +35,9 @@ odoo_module/
 │   └── controller.py
 ├── static/               # Assets (JS, CSS, images)
 │   └── src/
+│       ├── js/         # OWL components
+│       ├── css/        # Stylesheets
+│       └── xml/        # QWeb templates
 ├── data/                # XML data records
 │   └── data.xml
 ├── wizard/              # Transient models
@@ -43,12 +46,87 @@ odoo_module/
 └── tests/              # Test modules
 ```
 
+### OWL Component Structure (Odoo 19)
+```
+static/src/js/
+├── my_component.js         # OWL component definition
+└── owl/
+    ├── utils.js            # Reusable utility functions
+    └── services/          # Custom services
+
+static/src/xml/
+└── templates.xml          # QWeb templates with owl="1"
+
+static/src/css/
+└── my_component.css        # Component styles
+```
+
+### OWL Component Example
+```javascript
+odoo.define('my_module.MyComponent', function (require) {
+    "use strict";
+
+    const { Component, useState, onMounted, useService } = owl;
+    const { registry } = require('web.core');
+
+    class MyComponent extends Component {
+        setup() {
+            this.orm = useService('orm');
+            this.state = useState({
+                records: [],
+                loading: true,
+            });
+
+            onMounted(this.loadRecords.bind(this));
+        }
+
+        async loadRecords() {
+            this.state.records = await this.orm.searchRead(
+                'my.model',
+                [],
+                ['name', 'date']
+            );
+            this.state.loading = false;
+        }
+    }
+
+    MyComponent.template = 'my_module.MyComponent';
+    MyComponent.props = {
+        recordId: { type: Number, optional: true },
+    };
+
+    registry.category('actions').add('my_component', MyComponent);
+
+    return MyComponent;
+});
+```
+
 ### Key Odoo 19 Changes
 - **Enhanced ORM**: New field types and relationship options
 - **API Changes**: Updated HTTP routing with `@http.route()`
-- **Frontend**: OWL (Odoo Web Library) components
+- **Frontend**: OWL (Odoo Web Library) is primary framework
 - **Security**: Enhanced record rules and access rights
 - **Testing**: Improved test framework with better isolation
+- **Performance**: New tools for query optimization and caching
+
+### OWL Frontend Planning
+When planning OWL components:
+- Use Component-based architecture
+- Implement proper state management (useState, useStore)
+- Plan for service injection (orm, rpc, dialog, notification)
+- Consider lifecycle hooks (onMounted, onWillUnmount, onPatched)
+- Plan for reactivity and efficient updates
+- Use proper props validation
+- Consider performance (lazy loading, debouncing, pagination)
+
+### Performance Planning
+When planning for performance:
+- Identify N+1 query patterns early
+- Plan database indexes for searched fields
+- Use store=True on computed fields that are filtered
+- Consider batch operations for large datasets
+- Plan view limits (tree view limit attribute)
+- Consider caching strategies for expensive operations
 
 ## Planning Process
 

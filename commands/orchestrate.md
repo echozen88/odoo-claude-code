@@ -32,6 +32,18 @@ Odoo security-focused review:
 security-reviewer -> code-reviewer -> odoo-reviewer -> architect
 ```
 
+### performance
+Odoo performance optimization workflow:
+```
+performance-agent -> planner -> code-reviewer -> odoo-reviewer
+```
+
+### migration
+Odoo version migration workflow:
+```
+migration-agent -> code-reviewer -> odoo-reviewer -> security-reviewer
+```
+
 ## Execution Pattern
 
 For each agent in the workflow:
@@ -251,6 +263,65 @@ NOTES
 - Consider adding caching for report generation performance
 ```
 
+## Example: Performance Workflow
+
+```
+/orchestrate performance "Optimize slow report generation"
+```
+
+Executes:
+
+1. **Performance Agent**
+   - Analyzes ORM queries for N+1 problems
+   - Identifies missing database indexes
+   - Checks computed field caching
+   - Reviews view performance (tree limits, expensive fields)
+   - Analyzes record rules performance impact
+   - Output: `HANDOFF: performance-agent -> planner`
+
+2. **Planner Agent**
+   - Creates optimization plan
+   - Identifies quick wins vs major refactor
+   - Output: `HANDOFF: planner -> code-reviewer`
+
+3. **Code Reviewer Agent**
+   - Reviews suggested optimizations
+   - Checks PEP8 compliance
+   - Output: `HANDOFF: code-reviewer -> odoo-reviewer`
+
+4. **Odoo Reviewer Agent**
+   - Framework compliance check for optimized code
+   - Output: Final Report
+
+## Example: Migration Workflow
+
+```
+/orchestrate migration "17.0" "19.0"
+```
+
+Executes:
+
+1. **Migration Agent**
+   - Analyzes code for deprecated APIs between versions
+   - Generates migration checklist
+   - Identifies breaking changes
+   - Recommends data migration scripts
+   - Output: `HANDOFF: migration-agent -> code-reviewer`
+
+2. **Code Reviewer Agent**
+   - Reviews migrated code
+   - Checks for correct API usage
+   - Output: `HANDOFF: code-reviewer -> odoo-reviewer`
+
+3. **Odoo Reviewer Agent**
+   - Framework compliance check for new version
+   - Verifies manifest format
+   - Output: `HANDOFF: odoo-reviewer -> security-reviewer`
+
+4. **Security Reviewer Agent**
+   - Security audit for migrated code
+   - Output: Final Report
+
 ## Odoo 19 Specific Considerations
 
 ### When Planning Odoo Features
@@ -298,6 +369,8 @@ $ARGUMENTS:
 - `bugfix <description>` - Odoo bug fix workflow
 - `refactor <description>` - Odoo refactoring workflow
 - `security <description>` - Odoo security review workflow
+- `performance <description>` - Odoo performance optimization workflow
+- `migration <from-version> <to-version>` - Odoo version migration workflow
 - `custom <agents> <description>` - Custom agent sequence
 
 ## Custom Workflow Example
