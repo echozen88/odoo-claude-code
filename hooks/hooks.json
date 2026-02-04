@@ -43,7 +43,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "#!/usr/bin/env node\n\nconst filePath = process.env.TOOL_INPUT_FILE_PATH;\nconsole.log('\\x1b[36mℹ️  [Hook] Modified Python file: ' + filePath + '\\x1b[0m');\nconsole.log('Remember to run tests for this file.');\nconsole.log('Run: odoo -d test_db --test-enable --test-tags=' + path.basename(path.dirname(filePath)) + \" --stop-after-init');\n");\n"
+          "command": "#!/usr/bin/env node\n\nconst filePath = process.env.TOOL_INPUT_FILE_PATH;\nconsole.log('\\x1b[36mℹ️  [Hook] Modified Python file: ' + filePath + '\\x1b[0m');\nconsole.log('Remember to run tests for this file.');\nconsole.log('Run: odoo -d test_db --test-enable --test-tags=' + path.basename(path.dirname(filePath)) + ' --stop-after-init');\n"
         }
       ]
     }
