@@ -1,0 +1,62 @@
+{
+  "PreToolUse": [
+    {
+      "matcher": "tool == \"Write\" && tool_input.file_path matches \"\\\\.(py)$\"",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "#!/usr/bin/env node\n\nconst fs = require('fs');\nconst path = require('path');\nconst filePath = process.env.TOOL_INPUT_FILE_PATH;\n\n// Check if file is in tests/ directory\nif (filePath.includes('/tests/') || filePath.includes('\\\\tests\\\\')) {\n  // Test files are OK to write without tests first\n  process.exit(0);\n}\n\n// Check if file is a Python model file\nconst isModelFile = filePath.match(/models\\/[^\\/]+\\.py$/);\n\nif (isModelFile) {\n  // Check if corresponding test file exists\n  const basePath = path.dirname(filePath);\n  const testsPath = path.resolve(basePath, '../../tests');\n  const modelName = path.basename(filePath, '.py');\n  const testFileName = `test_${modelName}.py`;\n  const testFilePath = path.resolve(testsPath, testFileName);\n\n  if (!fs.existsSync(testFilePath)) {\n    console.error('\\x1b[33m⚠️  [Hook] No test file found for ' + modelName + '\\x1b[0m');\n    console.error('Expected test at: ' + testFilePath);\n    console.error('Please write tests first before implementing the model (TDD).');\n  }\n}\n"
+        }
+      ]
+    },
+    {
+      "matcher": "tool == \"Write\" && tool_input.file_path matches \"\\\\.(xml)$\"",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "#!/usr/bin/env node\n\nconst fs = require('fs');\nconst filePath = process.env.TOOL_INPUT_FILE_PATH;\n\n// Check if file is in security/ directory\nif (filePath.includes('/security/') || filePath.includes('\\\\security\\\\')) {\n  // Security files require attention\n  console.log('\\x1b[36mℹ️  [Hook] Security file modified: ' + filePath + '\\x1b[0m');\n  console.log('Remember to test access rights and record rules.');\n}\n"
+        }
+      ]
+    },
+    {
+      "matcher": "tool == \"Write\" && tool_input.file_path matches \"\\\\.(py)$\"",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "#!/usr/bin/env node\n\nconst fs = require('fs');\nconst filePath = process.env.TOOL_INPUT_FILE_PATH;\n\n// Read file content\nconst content = fs.readFileSync(filePath, 'utf8');\n\n// Check for sudo() usage without justification\nconst sudoMatches = content.matchAll(/\\.sudo\\(\\)/g);\nif (sudoMatches) {\n  console.error('\\x1b[31m🔴  [Hook] sudo() detected in ' + filePath + '\\x1b[0m');\n  console.error('sudo() bypasses all security checks.');\n  console.error('Only use sudo() when absolutely necessary (e.g., technical cleanup).');\n  console.error('Add a comment explaining why sudo() is needed.');\n}"
+        }
+      ]
+    }
+  ],
+  "PostToolUse": [
+    {
+      "matcher": "tool == \"Bash\" && tool_input.command matches \"git commit\"",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "#!/usr/bin/env node\n\nconst { execSync } = require('child_process');\n\ntry {\n  // Run pylint on modified Python files\n  const changedFiles = execSync('git diff --name-only HEAD~1..HEAD', { encoding: 'utf8' });\n  const pythonFiles = changedFiles.split('\\n').filter(f => f.endsWith('.py'));\n  \n  if (pythonFiles.length > 0) {\n    console.log('\\x1b[36mℹ️  [Hook] Running PEP8 check...\\x1b[0m');\n    try {\n      execSync('pylint --py3k ' + pythonFiles.join(' '), { stdio: 'inherit' });\n      console.log('\\x1b[32m✓  PEP8 check passed\\x1b[0m');\n    } catch (e) {\n      console.error('\\x1b[33m⚠️  PEP8 issues detected. Please fix before committing.\\x1b[0m');\n    }\n  }\n} catch (e) {\n  // Pylint may not be available, that's OK\n  console.log('PEP8 check skipped (pylint not available)');\n}"
+        }
+      ]
+    },
+    {
+      "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\\\.(py)$\"",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "#!/usr/bin/env node\n\nconst filePath = process.env.TOOL_INPUT_FILE_PATH;\nconsole.log('\\x1b[36mℹ️  [Hook] Modified Python file: ' + filePath + '\\x1b[0m');\nconsole.log('Remember to run tests for this file.');\nconsole.log('Run: odoo -d test_db --test-enable --test-tags=' + path.basename(path.dirname(filePath)) + \" --stop-after-init');\n");\n"
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "matcher": "tool == \"Stop\"",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "#!/usr/bin/env node\n\nconst { execSync } = require('child_process');\nconst fs = require('fs');\n\nconsole.log('\\x1b[36mℹ️  [Hook] Session ending. Running final checks...\\x1b[0m');\n\n// Check for console.log statements\nconst changedFiles = execSync('git diff --name-only HEAD~1..HEAD', { encoding: 'utf8' });\nconst pythonFiles = changedFiles.split('\\n').filter(f => f.endsWith('.py'));\n\nlet hasConsoleLog = false;\nfor (const file of pythonFiles) {\n  if (!fs.existsSync(file)) continue;\n  const content = fs.readFileSync(file, 'utf8');\n  if (content.includes('print(') || content.includes('console.log(')) {\n    console.error('\\x1b[33m⚠️  [Hook] Found console.log in ' + file + '\\x1b[0m');\n    console.error('Please remove console.log before committing.');\n    hasConsoleLog = true;\n  }\n}\n\n// Check for TODO/FIXME without tickets\nlet hasTodo = false;\nfor (const file of pythonFiles) {\n  if (!fs.existsSync(file)) continue;\n  const content = fs.readFileSync(file, 'utf8');\n  const todoMatches = content.matchAll(/TODO|FIXME/gi);\n  if (todoMatches.length > 0) {\n    const hasTicket = content.includes('TODO(') || content.includes('FIXME(');\n    if (!hasTicket) {\n      console.error('\\x1b[33m⚠️  [Hook] Found TODO/FIXME without ticket reference in ' + file + '\\x1b[0m');\n      console.error('Please add a ticket reference like TODO(#123).');\n      hasTodo = true;\n    }\n  }\n}\n\n// Check for hardcoded secrets\nconst secretPatterns = [/api[_-]?key\\s*[=:]\\s*[\"'][a-zA-Z0-9_-]+[\"']/gi, /password\\s*[=:]\\s*[\"'][a-zA-Z0-9_-]+[\"']/gi];\nfor (const file of pythonFiles) {\n  if (!fs.existsSync(file)) continue;\n  const content = fs.readFileSync(file, 'utf8');\n  for (const pattern of secretPatterns) {\n    const matches = content.match(pattern);\n    if (matches) {\n      console.error('\\x1b[31m🔴  [Hook] Potential hardcoded secret in ' + file + '\\x1b[0m');\n      console.error('Match: ' + matches[0]);\n      console.error('Never commit secrets! Use environment variables or system parameters.');\n    }\n  }\n}\n\nif (!hasConsoleLog && !hasTodo) {\n  console.log('\\x1b[32m✓  No console.log or TODO issues found.\\x1b[0m');\n}\n"
+        }
+      ]
+    }
+  ]
+}

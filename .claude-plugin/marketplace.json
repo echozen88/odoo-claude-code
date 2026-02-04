@@ -1,0 +1,16 @@
+{
+  "name": "odoo-claude-code",
+  "displayName": "Odoo Claude Code",
+  "description": "Claude Code plugin for Odoo 19 development - specialized agents, skills, and orchestration workflows tailored for Odoo ERP framework",
+  "version": "1.0.0",
+  "author": "Odoo Claude Code Team",
+  "repository": "https://github.com/echozen88/odoo-claude-code",
+  "license": "MIT",
+  "tags": [
+    "odoo",
+    "erp",
+    "python",
+    "development"
+  ],
+  "category": "Development Tools"
+}
