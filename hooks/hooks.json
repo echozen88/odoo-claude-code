@@ -1,5 +1,7 @@
 {
-  "PreToolUse": [
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
     {
       "matcher": "tool == \"Write\" && tool_input.file_path matches \"\\\\.(py)$\"",
       "hooks": [
@@ -59,4 +61,5 @@
       ]
     }
   ]
+  }
 }
