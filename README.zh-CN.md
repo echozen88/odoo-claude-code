@@ -70,6 +70,10 @@ git clone https://github.com/echozen88/odoo-claude-code.git
 
 # 复制规则（应用于所有项目）
 cp -r odoo-claude-code/rules/* ~/.claude/rules/
+
+# 或者项目级别规则（仅应用于当前项目）
+mkdir -p .claude/rules
+cp -r odoo-claude-code/rules/* .claude/rules/
 ```
 
 ### 步骤 3：开始使用

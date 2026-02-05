@@ -70,6 +70,11 @@ git clone https://github.com/echozen88/odoo-claude-code.git
 
 # Copy rules (applies to all projects)
 cp -r odoo-claude-code/rules/* ~/.claude/rules/
+
+# Or project level rules (applicable only to the current project)
+mkdir -p .claude/rules
+cp -r odoo-claude-code/rules/* .claude/rules/
+
 ```
 
 ### Step 3: Start Using
