@@ -261,11 +261,14 @@ image = fields.Image(string='Image', max_width=1024, max_height=1024)
 'data': [
     'security/ir.model.access.csv',
     'security/security.xml',
+    'views/assets.xml',  # ⚠️ REQUIRED: Assets loaded via XML template
 ],
 'demo': [
     'demo/demo_data.xml',
 ],
-'assets': {
+# 'assets' key is DEPRECATED in Odoo 19+
+# Use XML template inheritance in views/assets.xml instead
+'assets': {  # ⚠️ DEPRECATED
     'web.assets_backend': [
         'my_module/static/src/js/my_module.js',
         'my_module/static/src/css/my_module.css',
@@ -318,6 +321,50 @@ class MyComponent extends Component {
 }
 ```
 
+### Assets Loading Migration
+
+```python
+# ❌ OLD: Manifest 1.x format with assets key
+{
+    'name': 'My Module',
+    'version': '18.0.1.0.0',
+    'depends': ['base', 'web'],
+    'data': [...],
+    'assets': {
+        'web.assets_backend': [
+            'my_module/static/src/js/my_module.js',
+        ],
+    },
+}
+
+# ✅ NEW: Manifest 2.0 format (Odoo 19) - Use XML template
+{
+    'name': 'My Module',
+    'version': '19.0.1.0.0',
+    'depends': ['base', 'web'],
+    'data': [
+        'security/ir.model.access.csv',
+        'views/assets.xml',  # ⚠️ Load assets via XML
+    ],
+    # 'assets' key removed - DEPRECATED
+}
+```
+
+**External Library Migration:**
+
+```xml
+<!-- ❌ OLD: Try to load external library in manifest (NOT SUPPORTED) -->
+<!-- NOT POSSIBLE -->
+
+<!-- ✅ NEW: Load external library via XML template -->
+<template id="assets_backend" inherit_id="web.assets_backend" name="My Module External Libraries">
+    <xpath expr="." position="inside">
+        <script type="text/javascript"
+                src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"/>
+    </xpath>
+</template>
+```
+
 ### Manifest 2.0 Format
 
 ```python
@@ -350,12 +397,15 @@ Long description
     'data': [
         'security/ir.model.access.csv',
         'security/security.xml',
+        'views/assets.xml',  # ⚠️ REQUIRED: Assets loaded via XML template
         'views/my_views.xml',
     ],
     'demo': [
         'demo/demo_data.xml',
     ],
-    'assets': {
+    # 'assets' key is DEPRECATED in Odoo 19+
+    # Use XML template inheritance in views/assets.xml instead
+    'assets': {  # ⚠️ DEPRECATED
         'web.assets_backend': [
             'my_module/static/src/js/*.js',
             'my_module/static/src/scss/*.scss',
@@ -377,6 +427,15 @@ Long description
     'pre_init_hook': 'pre_init_hook',
 }
 ```
+
+### Assets Migration Checklist
+
+- [ ] Remove or comment out `assets` key from `__manifest__.py`
+- [ ] Create `views/assets.xml` with template inheritance
+- [ ] Use `<template inherit_id="web.assets_backend">` for backend assets
+- [ ] Load external libraries via XML template (CDN or local copy)
+- [ ] Add `views/assets.xml` to `data` list in manifest
+- [ ] Test that all JS/CSS loads correctly
 
 ### Service API Changes
 

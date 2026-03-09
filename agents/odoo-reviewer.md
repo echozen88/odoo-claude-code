@@ -41,9 +41,13 @@ You are an Odoo 19 framework specialist focused on ensuring code follows proper 
         'security/ir.model.access.csv',
         'security/security.xml',
         'views/my_model_views.xml',
+        'views/assets.xml',  # ⚠️ REQUIRED: Assets loaded via XML template
         'views/menu.xml',
     ],
-    'assets': {
+    # 'assets' key is DEPRECATED in Odoo 19+
+    # Use XML template inheritance in views/assets.xml instead
+    # Only keep for backward compatibility with older Odoo versions
+    'assets': {  # ⚠️ DEPRECATED
         'web.assets_backend': [
             'my_module/static/src/css/my_module.css',
             'my_module/static/src/js/my_module.js',
@@ -64,13 +68,58 @@ You are an Odoo 19 framework specialist focused on ensuring code follows proper 
 
 **Checklist:**
 - [ ] `name` and `description` present
-- [ ] `version` follows pattern: `16.0.1.0.0`
+- [ ] `version` follows pattern: `19.0.1.0.0`
 - [ ] `depends` includes all required modules
-- [ ] `data` lists all XML files (except demo)
+- [ ] `data` lists all XML files (including `views/assets.xml`)
 - [ ] `demo` lists demo data separately
-- [ ] `assets` properly configured for JS/CSS
+- [ ] `assets` DEPRECATED - Check for `views/assets.xml` instead
 - [ ] `installable` is True
 - [ ] No syntax errors
+
+### ⚠️ Assets Configuration Constraints (Odoo 19+)
+
+**CRITICAL RULES:**
+
+1. **禁止嵌套同名键** - Cannot have duplicate keys in same dict
+2. **assets 的键必须是预定义的**:
+   - `web.assets_frontend`
+   - `web.assets_backend`
+   - `web.assets_tests`
+   - `web.qunit_suite_tests`
+3. **不能在 assets 字典中嵌套 assets 键**
+4. **外部 JavaScript 库的处理** - Odoo 不支持在 manifest 中直接声明外部 CDN URL
+
+**Common Mistakes:**
+
+| ❌ Wrong | ✅ Correct |
+|----------|------------|
+| `'assets': {'web.assets_backend': [...], 'web.assets_backend': [...]}` | Cannot nest duplicate keys |
+| `'assets': {'web.assets_common': [...]}` | Key doesn't exist, use predefined keys |
+| `'assets': {'web.assets_backend': [{'url': '...'}]}` | Cannot use url dict in assets |
+| `'assets': {'web.assets_backend': ['https://cdn...']}` | External URLs not supported in manifest |
+
+**Correct Way to Load External Libraries:**
+
+```xml
+<!-- views/assets.xml -->
+<template id="assets_backend" inherit_id="web.assets_backend" name="My Module Assets">
+    <xpath expr="." position="inside">
+        <!-- External library (CDN) -->
+        <script type="text/javascript"
+                src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"/>
+        <!-- OR local copy (recommended) -->
+        <script type="text/javascript"
+                src="/my_module/static/lib/vis-network/vis-network.min.js"/>
+    </xpath>
+</template>
+```
+
+**Checklist for Assets:**
+- [ ] `views/assets.xml` exists in data list
+- [ ] No duplicate keys in assets dict
+- [ ] Only predefined asset keys used
+- [ ] External libraries loaded via XML template, not manifest
+- [ ] Local libraries in `static/lib/` directory
 
 ### 2. Model Definition Checks
 

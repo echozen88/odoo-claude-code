@@ -110,12 +110,15 @@ Long description of the module
         'security/ir.model.access.csv',
         'security/security.xml',
         'views/module_name_views.xml',
+        'views/assets.xml',  # ⚠️ REQUIRED: Load JS/CSS via XML template inheritance
         'views/menu.xml',
     ],
     'demo': [
         'demo/demo_data.xml',
     ],
-    'assets': {
+    # 'assets' key is DEPRECATED in Odoo 19+
+    # Use XML template inheritance in views/assets.xml instead
+    'assets': {  # ⚠️ DEPRECATED - Only for backward compatibility
         'web.assets_backend': [
             'module_name/static/src/css/module_name.css',
             'module_name/static/src/js/module_name.js',
@@ -466,6 +469,77 @@ class ModelNameLine(models.Model):
     </record>
 </odoo>
 ```
+
+### views/assets.xml
+
+⚠️ **IMPORTANT**: Odoo 19 requires using XML template inheritance for assets loading.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Backend Assets -->
+    <template id="assets_backend" inherit_id="web.assets_backend" name="Module Name Backend Assets">
+        <xpath expr="." position="inside">
+            <!-- Module CSS -->
+            <link rel="stylesheet"
+                  href="/module_name/static/src/css/module_name.css"/>
+            <!-- Module JS -->
+            <script type="text/javascript"
+                    src="/module_name/static/src/js/module_name.js"/>
+        </xpath>
+    </template>
+
+    <!-- Frontend Assets (if needed) -->
+    <template id="assets_frontend" inherit_id="web.assets_frontend" name="Module Name Frontend Assets">
+        <xpath expr="." position="inside">
+            <link rel="stylesheet"
+                  href="/module_name/static/src/css/frontend.css"/>
+            <script type="text/javascript"
+                    src="/module_name/static/src/js/frontend.js"/>
+        </xpath>
+    </template>
+
+    <!-- External Libraries (e.g., vis-network, Chart.js, etc.) -->
+    <template id="assets_external" inherit_id="web.assets_backend" name="Module Name External Libraries">
+        <xpath expr="." position="inside">
+            <!-- ⚠️ CORRECT: External library via CDN -->
+            <script type="text/javascript"
+                    src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"/>
+            <!-- OR use local copy (recommended for production) -->
+            <!-- <script type="text/javascript"
+                    src="/module_name/static/lib/vis-network/vis-network.min.js"/> -->
+        </xpath>
+    </template>
+</odoo>
+```
+
+**⚠️ ASSETS CONFIGURATION CONSTRAINTS:**
+
+1. **禁止嵌套同名键** - Cannot have duplicate keys in same dict
+2. **assets 的键必须是预定义的**:
+   - `web.assets_frontend`
+   - `web.assets_backend`
+   - `web.assets_tests`
+   - `web.qunit_suite_tests`
+3. **不能在 assets 字典中嵌套 assets 键**
+4. **外部 JavaScript 库的处理** - Odoo 不支持在 manifest 中直接声明外部 CDN URL
+
+**External Library Loading:**
+
+| Method | Description |
+|--------|-------------|
+| CDN URL | `<script src="https://unpkg.com/vis-network/..."/>` in XML template |
+| Local Copy | Download to `static/lib/` then reference in assets template |
+| ❌ Wrong | `'assets': {'web.assets_backend': 'https://...'} in manifest` |
+
+**Common Mistakes:**
+
+| ❌ Wrong | ✅ Correct |
+|----------|------------|
+| `'assets': {'web.assets_backend': [...], 'web.assets_backend': [...]}` | Cannot nest duplicate keys |
+| `'assets': {'web.assets_common': [...]}` | Key doesn't exist, use predefined keys |
+| `'assets': {'web.assets_backend': [{'url': '...'}]}` | Cannot use url dict in assets |
+| External URL in manifest | Use XML template with `<script src="..."/>` |
 
 ### views/menu.xml
 

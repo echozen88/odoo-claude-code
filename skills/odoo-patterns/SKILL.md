@@ -111,11 +111,14 @@ odoo_module/
         'security/ir.model.access.csv',
         'security/security.xml',
         'views/my_model_views.xml',
+        'views/assets.xml',  # ⚠️ REQUIRED: Assets loaded via XML template
         'views/menu.xml',
         'data/data.xml',
         'wizard/my_wizard_views.xml',
     ],
-    'assets': {
+    # 'assets' key is DEPRECATED in Odoo 19+
+    # Use XML template inheritance in views/assets.xml instead
+    'assets': {  # ⚠️ DEPRECATED - Only for backward compatibility
         'web.assets_backend': [
             'my_module/static/src/css/my_module.css',
             'my_module/static/src/js/my_module.js',
@@ -139,6 +142,123 @@ odoo_module/
     'auto_install': False,
     'post_init_hook': 'post_init_hook',
     'uninstall_hook': 'uninstall_hook',
+}
+```
+
+## Module Manifest Pattern - Correct Example
+
+```python
+{
+    'name': 'Partner Approval State',
+    'version': '19.0.1.0.0',
+    'category': 'Base',
+    'summary': 'Adds approval state field to res.partner for tracking supplier and customer approval status',
+    'description': """
+    This module adds an approval state field to the res.partner model for tracking the approval
+    status of suppliers and customers. It provides:
+
+    Features
+    --------
+    - Approval state field (draft, pending, approved, rejected)
+    - Approval workflow
+    - Approval history
+    - Approval dashboard
+    """,
+    'author': 'Odoo Claud Code Team',
+    'website': 'https://github.com/echozen88/odoo-claude-code',
+    'license': 'LGPL-3',
+    'depends': ['base', 'mail'],
+    'data': [
+        'security/ir.model.access.csv',
+        'security/security.xml',
+        'views/partner_views.xml',
+        'views/menu.xml',
+        'views/approval_dashboard.xml',
+        'views/approval_history.xml',
+        'data/approval_states.xml',
+        'i18n/zh_CN.po',
+    ],
+    'demo': [
+        'data/demo.xml',
+    ],
+    'installable': True,
+    'application': True,
+    'auto_install': False,
+}
+```
+
+## Assets Configuration Pattern (Odoo 19+)
+
+### ⚠️ Critical Constraints
+
+**禁止嵌套同名键** - Cannot have duplicate keys in same dict
+**assets 的键必须是预定义的**:
+- `web.assets_frontend`
+- `web.assets_backend`
+- `web.assets_tests`
+- `web.qunit_suite_tests`
+
+**不能在 assets 字典中嵌套 assets 键**
+**外部 JavaScript 库的处理** - Odoo 不支持在 manifest 中直接声明外部 CDN URL
+
+### Common Mistakes
+
+| ❌ Wrong | ✅ Correct |
+|----------|------------|
+| `'assets': {'web.assets_backend': [...], 'web.assets_backend': [...]}` | Cannot nest duplicate keys |
+| `'assets': {'web.assets_common': [...]}` | Key doesn't exist, use predefined keys |
+| `'assets': {'web.assets_backend': [{'url': '...'}]}` | Cannot use url dict in assets |
+| `'assets': {'web.assets_backend': ['https://cdn...']}` | External URLs not supported in manifest |
+
+### Correct Way: XML Template Inheritance
+
+```xml
+<!-- views/assets.xml -->
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Backend Assets -->
+    <template id="assets_backend" inherit_id="web.assets_backend" name="My Module Backend Assets">
+        <xpath expr="." position="inside">
+            <!-- Module CSS -->
+            <link rel="stylesheet" href="/my_module/static/src/css/my_module.css"/>
+            <!-- Module JS -->
+            <script type="text/javascript" src="/my_module/static/src/js/my_module.js"/>
+        </xpath>
+    </template>
+
+    <!-- External Libraries (e.g., vis-network) -->
+    <template id="assets_external" inherit_id="web.assets_backend" name="My Module External Libraries">
+        <xpath expr="." position="inside">
+            <!-- Option 1: CDN URL (for development) -->
+            <script type="text/javascript"
+                    src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"/>
+            <!-- Option 2: Local copy (recommended for production) -->
+            <!-- <script type="text/javascript"
+                    src="/my_module/static/lib/vis-network/vis-network.min.js"/> -->
+        </xpath>
+    </template>
+</odoo>
+```
+
+### External Library Setup
+
+```bash
+# Download external library to static/lib/
+mkdir -p static/lib/vis-network
+wget https://unpkg.com/vis-network/standalone/umd/vis-network.min.js \
+     -O static/lib/vis-network/vis-network.min.js
+```
+
+### Manifest Update
+
+```python
+{
+    'data': [
+        # ...
+        'views/assets.xml',  # ⚠️ REQUIRED: Load assets via XML template
+        # ...
+    ],
+    # Remove or comment out 'assets' key - DEPRECATED in Odoo 19+
 }
 ```
 
