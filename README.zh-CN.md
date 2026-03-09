@@ -294,6 +294,68 @@ cp -r odoo-claude-code/skills/* ~/.claude/skills/
 
 ---
 
+## 更新插件
+
+### 方式 1：通过插件管理器更新（推荐）
+
+```bash
+# 更新到最新版本
+/plugin update odoo-claude-code@odoo-claude-code
+```
+
+### 方式 2：通过 Git 更新
+
+如果您是通过 git 手动安装的：
+
+```bash
+# 进入克隆的仓库目录
+cd odoo-claude-code
+
+# 拉取最新更改
+git pull origin main
+
+# 重新复制更新的文件
+cp agents/*.md ~/.claude/agents/
+cp commands/*.md ~/.claude/commands/
+cp -r skills/* ~/.claude/skills/
+cp rules/*.md ~/.claude/rules/
+
+# 更新钩子（如果需要）
+# 从 hooks/hooks.json 复制新钩子到 ~/.claude/settings.json
+```
+
+### 更新规则
+
+规则不会自动更新。要更新规则：
+
+```bash
+# 进入克隆的仓库目录
+cd odoo-claude-code
+
+# 备份现有规则（可选）
+cp -r ~/.claude/rules ~/.claude/rules.backup
+
+# 复制更新的规则
+cp -r rules/* ~/.claude/rules/
+
+# 或项目级规则
+cp -r rules/* .claude/rules/
+```
+
+### 检查当前版本
+
+要验证您安装的版本：
+
+```bash
+# 检查插件状态
+/plugin status
+
+# 列出已安装的插件
+/plugin list
+```
+
+---
+
 ## 代理说明
 
 ### planner (Odoo 19)

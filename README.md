@@ -297,6 +297,68 @@ Copy desired MCP servers from `mcp-configs/mcp-servers.json` to your `~/.claude.
 
 ---
 
+## Updating the Plugin
+
+### Option 1: Update via Plugin Manager (Recommended)
+
+```bash
+# Update to the latest version
+/plugin update odoo-claude-code@odoo-claude-code
+```
+
+### Option 2: Update via Git
+
+If you installed manually via git:
+
+```bash
+# Navigate to the cloned repository
+cd odoo-claude-code
+
+# Pull the latest changes
+git pull origin main
+
+# Re-copy the updated files
+cp agents/*.md ~/.claude/agents/
+cp commands/*.md ~/.claude/commands/
+cp -r skills/* ~/.claude/skills/
+cp rules/*.md ~/.claude/rules/
+
+# Update hooks (if needed)
+# Copy new hooks from hooks/hooks.json to ~/.claude/settings.json
+```
+
+### Update Rules
+
+Rules are not automatically updated. To update rules:
+
+```bash
+# Navigate to the cloned repository
+cd odoo-claude-code
+
+# Backup existing rules (optional)
+cp -r ~/.claude/rules ~/.claude/rules.backup
+
+# Copy updated rules
+cp -r rules/* ~/.claude/rules/
+
+# Or project-level rules
+cp -r rules/* .claude/rules/
+```
+
+### Check Current Version
+
+To verify your installed version:
+
+```bash
+# Check plugin status
+/plugin status
+
+# List installed plugins
+/plugin list
+```
+
+---
+
 ## Key Concepts
 
 ### Agents
